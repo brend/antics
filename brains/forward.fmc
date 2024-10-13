@@ -1,0 +1,3 @@
+start:
+ADVANCE
+JMP start

@@ -1,3 +1,6 @@
+use crate::formica::{Instruction, Address};
+use crate::grid::Direction;
+
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
 pub struct Colony(pub u32);
 
@@ -43,28 +46,22 @@ pub enum Action {
 }
 
 #[derive(Debug)]
-pub enum Direction {
-    North,
-    NorthEast,
-    SouthEast,
-    South,
-    SouthWest,
-    NorthWest,
-}
-
-#[derive(Debug)]
 pub struct Ant {
     pub colony: Colony,
     pub food: u32,
     pub facing: Direction,
+    pub program_counter: u32,
+    pub program: Vec<Instruction>,
 }
 
 impl Ant {
-    pub fn new(colony: Colony) -> Self {
+    pub fn new(colony: Colony, program: Vec<Instruction>) -> Self {
         Ant {
             colony,
             food: 0,
             facing: Direction::North,
+            program_counter: 0,
+            program
         }
     }
 
@@ -90,16 +87,6 @@ impl Ant {
         };
     }
 
-    pub fn decide(&self, input: &Input) -> Action {
-        let r = rand::random::<f32>();
-
-        if r < 0.3 {
-            Action::ReleasePheromone(Scent(rand::random()))
-        } else {
-            Action::MoveForward
-        }
-    }
-
     pub fn to_ascii(&self) -> char {
         match self.facing {
             Direction::North => '^',
@@ -108,6 +95,61 @@ impl Ant {
             Direction::South => 'v',
             Direction::SouthWest => '\\',
             Direction::NorthWest => '^',
+        }
+    }
+
+    pub fn advance(&mut self) {
+        let instruction = &self.program[self.program_counter as usize];
+        match instruction {
+            Instruction::Advance => {
+                self.program_counter += 1;
+            },
+            Instruction::TurnLeft => {
+                self.turn_left();
+                self.program_counter += 1;
+            },
+            Instruction::TurnRight => {
+                self.turn_right();
+                self.program_counter += 1;
+            },
+            Instruction::Pickup => {
+                self.program_counter += 1;
+            },
+            Instruction::Drop => {
+                self.program_counter += 1;
+            },
+            Instruction::ReleasePh(scent) => {
+                self.program_counter += 1;
+            },
+            Instruction::ErasePh => {
+                self.program_counter += 1;
+            },
+            Instruction::CheckFood => {
+                self.program_counter += 1;
+            },
+            Instruction::CheckPh => {
+                self.program_counter += 1;
+            },
+            Instruction::CheckNest => {
+                self.program_counter += 1;
+            },
+            Instruction::Jmp(Address::Absolute(address)) => {
+                self.program_counter = *address;
+            },
+            Instruction::Jz(Address::Absolute(address)) => {
+                if self.food == 0 {
+                    self.program_counter = *address;
+                } else {
+                    self.program_counter += 1;
+                }
+            },
+            Instruction::Jnz(Address::Absolute(address)) => {
+                if self.food != 0 {
+                    self.program_counter = *address;
+                } else {
+                    self.program_counter += 1;
+                }
+            },
         }
     }
 }
