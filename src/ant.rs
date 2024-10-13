@@ -28,3 +28,7 @@ pub enum Action {
     ReleasePheromone(Scent),
     ErasePheromone,
 }
+
+#[derive(Debug)]
+pub struct Ant {
+}
