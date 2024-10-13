@@ -1,10 +1,9 @@
 use antics::world::{World, Coord};
-use antics::ant::Ant;
+use antics::ant::{Colony, Ant};
 
 fn create_world() -> World {
-    // create a world
     let mut world = World::new(10);
-    world.add_ant(Coord::new(0, 0, 0), Ant {});
+    world.add_ant(Coord::new(0, 0, 0), Ant::new(Colony(0)));
     world
 }
 

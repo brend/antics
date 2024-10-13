@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use crate::ant::{Colony, Pheromone, Ant};
+use crate::ant::{Colony, Pheromone, Ant, Input, Action, Direction};
 
 #[derive(Debug)]
 pub struct Cell {
@@ -17,8 +17,8 @@ impl Cell {
             '*'
         } else if self.nest.is_some() {
             'N'
-        } else if self.pheromone.is_some() {
-            '.'
+        } else if let Some(p) = self.pheromone {
+            p.scent.to_ascii()
         } else {
             '_'
         }
@@ -97,28 +97,6 @@ impl World {
     pub fn add_ant(&mut self, coord: Coord, ant: Ant) {
         self.ants.insert(coord, ant);
     }
-
-    pub fn print(&self) {
-        let size = self.size as i32;
-        // Determine the range of coordinates to display, assuming the grid is centered
-        for r in -size..=size {
-            // Add padding at the start of each row to shift columns correctly
-            let padding = (size / 2 - r).abs() as usize;
-            print!("{}", "ö".repeat(padding));
-
-            for q in -size..=size {
-                let s = -r - q;
-                let coord = Coord { r, s, q };
-
-                if let Some(value) = self.cells.get(&coord) {
-                    print!("{} ", value.to_ascii());
-                } else {
-                    print!(". ");
-                }
-            }
-            println!();
-        }
-    }
     
     pub fn display(&self) {
         let mut min_x = i32::MAX;
@@ -140,28 +118,93 @@ impl World {
             for x in min_x..=max_x {
                 let z = -x - y;
                 let coord = Coord::new(x, y, z);
-                let icon = if self.ants.contains_key(&coord) { '@' } else if let Some(value) = self.cells.get(&coord) { value.to_ascii() } else { ' ' };
+                let icon = if let Some(ant) = self.ants.get(&coord) { ant.to_ascii() } else if let Some(value) = self.cells.get(&coord) { value.to_ascii() } else { ' ' };
                 print!(" {icon} ");
             }
             println!();
         }
     }
+    
+    pub fn update(&mut self) {
+        let mut actions: HashMap<Coord, Action> = HashMap::new();
+        let mut moves = vec![];
 
-    fn random_ant_moves(&self) -> Vec<(Coord, Coord)> {
-        let mut moves = Vec::new();
-
+        // collect actions
         for (coord, ant) in &self.ants {
-            let new_coord = coord.move_x(1);
-            moves.push((*coord, new_coord));
+            let cell = self.cells.get(coord).unwrap();
+            let input = Input {
+                is_carrying_food: ant.food > 0,
+                is_food_on_ground: cell.food > 0,
+                is_in_nest: if let Some(nest) = cell.nest { nest == ant.colony } else { false },
+                pheromone: cell.pheromone,
+            };
+            actions.insert(*coord, ant.decide(&input));
         }
 
-        moves
-    }
+        // execute actions
+        for (coord, action) in &actions {
+            match action {
+                Action::MoveForward => {
+                    let new_coord = match self.ants.get(coord) {
+                        Some(ant) => {
+                            let (r, s, q) = (coord.r, coord.s, coord.q);
+                            match ant.facing {
+                                Direction::North => Coord::new(r + 1, s, q - 1),
+                                Direction::NorthEast => Coord::new(r, s + 1, q - 1),
+                                Direction::SouthEast => Coord::new(r - 1, s + 1, q),
+                                Direction::South => Coord::new(r - 1, s, q + 1),
+                                Direction::SouthWest => Coord::new(r, s - 1, q + 1),
+                                Direction::NorthWest => Coord::new(r + 1, s - 1, q),
+                            }
+                        },
+                        None => *coord,
+                    };
+                    moves.push((coord, new_coord));
+                },
+                Action::TurnLeft => {
+                    if let Some(ant) = self.ants.get_mut(coord) {
+                        ant.turn_left();
+                    }
+                },
+                Action::TurnRight => {
+                    if let Some(ant) = self.ants.get_mut(coord) {
+                        ant.turn_right();
+                    }
+                },
+                Action::PickUpFood => {
+                    if let Some(cell) = self.get_cell_mut(*coord) {
+                        if cell.food > 0 {
+                            cell.food -= 1;
+                            if let Some(ant) = self.ants.get_mut(coord) {
+                                ant.food += 1;
+                            }
+                        }
+                    }
+                },
+                Action::DropFood => {
+                    if let Some(cell) = self.get_cell_mut(*coord) {
+                        cell.food += 1;
+                        if let Some(ant) = self.ants.get_mut(coord) {
+                            ant.food -= 1;
+                        }
+                    }
+                },
+                Action::ReleasePheromone(scent) => {
+                    let colony = self.ants.get(coord).unwrap().colony;
+                    if let Some(cell) = self.get_cell_mut(*coord) {
+                        cell.pheromone = Some(Pheromone::new(*scent, colony));
+                    }
+                },
+                Action::ErasePheromone => {
+                    if let Some(cell) = self.get_cell_mut(*coord) {
+                        cell.pheromone = None;
+                    }
+                },
+                _ => println!("Unhandled action: {:?}", action),
+            }
+        }
 
-    pub fn update(&mut self) {
-        // For now, just move the ants randomly
-        let moves = self.random_ant_moves();
-
+        // execute move actions
         for (old_coord, new_coord) in moves {
             if let Some(ant) = self.ants.remove(&old_coord) {
                 self.ants.insert(new_coord, ant);
