@@ -5,7 +5,6 @@ use antics::formica::{parse, Instruction};
 
 fn create_world(program: Vec<Instruction>) -> World {
     let mut world = World::new(3, program);
-    world.add_food(Coord::new(1, 0, -1), 1);
     world.add_ant(Ant::new(Colony(0), Coord::new(0, 0, 0)));
     world
 }

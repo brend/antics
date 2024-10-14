@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::io::Write;
 use crate::grid::{Grid, Coord, Direction};
-use crate::ant::{Colony, Pheromone, Scent, Ant};
+use crate::ant::{Colony, Pheromone, Ant};
 use crate::formica::{Instruction, run_instruction};
 
 #[derive(Default)]
@@ -30,48 +30,6 @@ impl World {
         }
     }
 
-    fn get_cell(&self, coord: &Coord) -> Option<&Cell> {
-        self.grid.cells.get(coord)
-    }
-
-    fn get_cell_mut(&mut self, coord: Coord) -> Option<&mut Cell> {
-        self.grid.get_mut(&coord)
-    }
-
-    pub fn add_obstacle(&mut self, coord: Coord) {
-        if let Some(cell) = self.get_cell_mut(coord) {
-            cell.is_obstacle = true;
-        }
-    }
-
-    pub fn add_food(&mut self, coord: Coord, amount: u8) {
-        if let Some(cell) = self.get_cell_mut(coord) {
-            cell.food += amount;
-        }
-    }
-
-    pub fn remove_food(&mut self, coord: Coord, amount: u8) {
-        if let Some(cell) = self.get_cell_mut(coord) {
-            cell.food = cell.food.saturating_sub(amount);
-        }
-    }
-
-    pub fn get_food_amount(&self, coord: Coord) -> u8 {
-        if let Some(cell) = self.get_cell(&coord) {
-            cell.food
-        } else {
-            0
-        }
-    }
-
-    pub fn is_obstacle(&self, coord: &Coord) -> bool {
-        if let Some(cell) = self.get_cell(coord) {
-            cell.is_obstacle
-        } else {
-            false
-        }
-    }
-
     pub fn add_ant(&mut self, ant: Ant) {
         self.ants.push(ant);
     }
@@ -80,40 +38,6 @@ impl World {
         self.ants.iter().find(|ant| ant.coord == *coord)
     }
 
-    pub fn get_pheromone(&self, coord: &Coord, colony: Colony) -> Option<Pheromone> {
-        if let Some(cell) = self.get_cell(coord) {
-            cell.pheromone.filter(|p| p.colony == colony)
-        } else {
-            None
-        }
-    }
-
-    pub fn add_pheromone(&mut self, coord: Coord, scent: Scent, colony: Colony) {
-        if let Some(cell) = self.get_cell_mut(coord) {
-            cell.pheromone = Some(Pheromone { scent, colony });
-        }
-    }
-
-    pub fn erase_pheromone(&mut self, coord: Coord) {
-        if let Some(cell) = self.get_cell_mut(coord) {
-            cell.pheromone = None;
-        }
-    }
-
-    pub fn get_nest(&self, coord: &Coord) -> Option<Colony> {
-        if let Some(cell) = self.get_cell(coord) {
-            cell.nest
-        } else {
-            None
-        }
-    }
-    
-    pub fn get_neighbor(&self, coord: &Coord, direction: &Direction) -> Coord {
-        let (x, y, z) = (coord.q, coord.r, coord.s);
-        let (dx, dy, dz) = direction.to_cube();
-        Coord::new(x + dx, y + dy, z + dz)
-    }
-    
     pub fn update(&mut self) {
         for ant in &mut self.ants {
             run_instruction(&self.program, &mut self.grid, ant);
