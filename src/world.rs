@@ -38,6 +38,14 @@ impl World {
         self.ants.iter().find(|ant| ant.coord == *coord)
     }
 
+    pub fn set_nest(&mut self, coord: Coord, colony: Colony) {
+        self.grid.get_mut(&coord).unwrap().nest = Some(colony);
+    }
+
+    pub fn set_food(&mut self, coord: Coord, food: u8) {
+        self.grid.get_mut(&coord).unwrap().food = food;
+    }
+
     pub fn update(&mut self) {
         for ant in &mut self.ants {
             run_instruction(&self.program, &mut self.grid, ant);
@@ -47,7 +55,33 @@ impl World {
     pub fn serialize_as_html(&self, file_name: &str) -> std::io::Result<()> {
         let mut file = File::create(file_name)?;
     
-        // HTML and SVG header
+        // Constants for hexagon dimensions
+        let hex_radius = 20.0; // Radius of each hexagon
+        let hex_width = hex_radius * 2.0;
+        let hex_height = 3f64.sqrt() * hex_radius;
+    
+        // Calculate min and max bounds for the grid
+        let (mut min_x, mut min_y, mut max_x, mut max_y) = (f64::INFINITY, f64::INFINITY, f64::NEG_INFINITY, f64::NEG_INFINITY);
+    
+        for coord in self.grid.keys() {
+            let (x, y) = (coord.q, coord.r);
+            let center_x = x as f64 * hex_width * 0.75;
+            let center_y = y as f64 * hex_height + (x as f64 * hex_height / 2.0);
+    
+            min_x = min_x.min(center_x);
+            min_y = min_y.min(center_y);
+            max_x = max_x.max(center_x);
+            max_y = max_y.max(center_y);
+        }
+    
+        // Calculate viewBox dimensions
+        let padding = 40.0;
+        let view_box_x = min_x - padding;
+        let view_box_y = min_y - padding;
+        let view_box_width = (max_x - min_x) + 2.0 * padding;
+        let view_box_height = (max_y - min_y) + 2.0 * padding;
+    
+        // HTML and SVG header with dynamic viewBox
         writeln!(file, r#"<!DOCTYPE html>
     <html lang="en">
     <head>
@@ -68,12 +102,8 @@ impl World {
         </style>
     </head>
     <body>
-        <svg width="100%" height="100%" viewBox="-140 -140 900 900">
-    "#)?;
-    
-        let hex_radius = 20.0; // Radius of each hexagon
-        let hex_width = hex_radius * 2.0;
-        let hex_height = 3f64.sqrt() * hex_radius;
+        <svg width="100%" height="100%" viewBox="{} {} {} {}">
+    "#, view_box_x, view_box_y, view_box_width, view_box_height)?;
     
         for (coord, cell) in self.grid.iter() {
             let (x, y) = (coord.q, coord.r);
@@ -117,7 +147,7 @@ impl World {
                     center_x, center_y, emoji
                 )?;
             }
-
+    
             // Display the ant at the hexagon center
             if let Some(ant) = self.get_ant(&coord) {
                 let ant_emoji = ant.to_ascii();

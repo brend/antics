@@ -4,8 +4,19 @@ use antics::ant::{Colony, Ant};
 use antics::formica::{parse, Instruction};
 
 fn create_world(program: Vec<Instruction>) -> World {
-    let mut world = World::new(3, program);
-    world.add_ant(Ant::new(Colony(0), Coord::new(0, 0, 0)));
+    let mut world = World::new(9, program);
+    let colony1 = Colony(1);
+    let nest1 = Coord::new(8, -8, 0);
+    for nest_coord in vec![
+        Coord::new(8, -8, 0),
+        Coord::new(8, -7, -1),
+        Coord::new(7, -7, 0),
+        Coord::new(7, -8, 1),
+    ] {
+        world.set_nest(nest_coord, colony1);
+    }
+    world.add_ant(Ant::new(colony1, nest1));
+    world.set_food(Coord::new(6, -6, 0), 1);
     world
 }
 

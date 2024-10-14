@@ -86,6 +86,10 @@ impl<T: Default> Grid<T> {
         self.cells.iter()
     }
 
+    pub fn keys(&self) -> impl Iterator<Item = &Coord> {
+        self.cells.keys()
+    }
+
     pub fn get_neighbor(&self, coord: &Coord, dir: &Direction) -> Coord {
         let (dr, ds, dq) = dir.to_cube();
         Coord::new(coord.r + dr, coord.s + ds, coord.q + dq)

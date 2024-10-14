@@ -103,4 +103,8 @@ impl Ant {
             false
         }
     }
+
+    pub fn bark(&self) {
+        println!("ant@{:?} barked", self.coord);
+    }
 }

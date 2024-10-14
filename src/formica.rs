@@ -1,6 +1,6 @@
-use crate::ant::{Ant, Scent, Pheromone};
-use crate::world::Cell;
+use crate::ant::{Ant, Pheromone, Scent};
 use crate::grid::Grid;
+use crate::world::Cell;
 
 #[derive(Debug)]
 pub enum Address {
@@ -17,11 +17,12 @@ pub enum Instruction {
     ReleasePh(u8),
     ErasePh,
     CheckFood,
-    CheckPh, 
+    CheckPh,
     CheckNest,
     Jmp(Address),
     Jz(Address),
     Jnz(Address),
+    Bark,
 }
 
 pub fn parse(input: &str) -> Vec<Instruction> {
@@ -57,7 +58,7 @@ pub fn parse(input: &str) -> Vec<Instruction> {
             Some("RELEASE_PH") => {
                 let scent = parts.next().unwrap().parse().unwrap();
                 instructions.push(Instruction::ReleasePh(scent));
-            },
+            }
             Some("ERASE_PH") => instructions.push(Instruction::ErasePh),
             Some("CHECK_FOOD") => instructions.push(Instruction::CheckFood),
             Some("CHECK_PH") => instructions.push(Instruction::CheckPh),
@@ -69,7 +70,7 @@ pub fn parse(input: &str) -> Vec<Instruction> {
                 } else {
                     panic!("Undefined label: {}", label);
                 }
-            },
+            }
             Some("JZ") => {
                 let label = parts.next().unwrap().to_string();
                 if let Some(&address) = labels.get(&label) {
@@ -77,7 +78,7 @@ pub fn parse(input: &str) -> Vec<Instruction> {
                 } else {
                     panic!("Undefined label: {}", label);
                 }
-            },
+            }
             Some("JNZ") => {
                 let label = parts.next().unwrap().to_string();
                 if let Some(&address) = labels.get(&label) {
@@ -85,7 +86,8 @@ pub fn parse(input: &str) -> Vec<Instruction> {
                 } else {
                     panic!("Undefined label: {}", label);
                 }
-            },
+            }
+            Some("BARK") => instructions.push(Instruction::Bark),
             _ => panic!("Invalid instruction: {}", line),
         }
     }
@@ -112,49 +114,67 @@ pub fn run_instruction(program: &[Instruction], grid: &mut Grid<Cell>, ant: &mut
         Instruction::Advance => {
             let success = ant.move_forward(grid);
             flag = if success { 1 } else { 0 };
-        },
+        }
         Instruction::TurnLeft => {
             ant.turn_left();
-        },
+        }
         Instruction::TurnRight => {
             ant.turn_right();
-        },
+        }
         Instruction::Pickup => {
             let success = ant.pickup(grid);
             flag = if success { 1 } else { 0 };
-        },
+        }
         Instruction::Drop => {
             let success = ant.drop(grid);
             flag = if success { 1 } else { 0 };
-        },
+        }
         Instruction::ReleasePh(scent) => {
-            grid.get_mut(&ant.coord).unwrap().pheromone = Some(Pheromone { scent: Scent(*scent), colony: ant.colony });
-        },
+            grid.get_mut(&ant.coord).unwrap().pheromone = Some(Pheromone {
+                scent: Scent(*scent),
+                colony: ant.colony,
+            });
+        }
         Instruction::ErasePh => {
             grid.get_mut(&ant.coord).unwrap().pheromone = None;
-        },
+        }
         Instruction::CheckFood => {
             flag = grid.get(&ant.coord).map(|cell| cell.food).unwrap_or(0);
-        },
+        }
         Instruction::CheckPh => {
-            flag = grid.get(&ant.coord).and_then(|cell| cell.pheromone).map(|p| p.scent.0).unwrap_or(0);
-        },
+            flag = grid
+                .get(&ant.coord)
+                .and_then(|cell| cell.pheromone)
+                .map(|p| p.scent.0)
+                .unwrap_or(0);
+        }
         Instruction::CheckNest => {
-            flag = grid.get(&ant.coord).and_then(|cell| cell.nest).map(|n| n.0).unwrap_or(0);
-        },
+            flag = grid
+                .get(&ant.coord)
+                .and_then(|cell| cell.nest)
+                .map(|n| n.0)
+                .unwrap_or(0);
+        }
         Instruction::Jmp(Address::Absolute(address)) => {
             ant.state.pc = *address;
-        },
+        }
         Instruction::Jz(Address::Absolute(address)) => {
-            if ant.food == 0 {
+            if ant.state.flag == 0 {
                 ant.state.pc = *address;
             }
-        },
+        }
         Instruction::Jnz(Address::Absolute(address)) => {
-            if ant.food != 0 {
+            if ant.state.flag != 0 {
                 ant.state.pc = *address;
             }
-        },
+        }
+        Instruction::Bark => {
+            ant.bark();
+        }
     }
     ant.state.flag = flag;
+    println!(
+        "ant@{:?} executed {:?} flag={}",
+        ant.coord, instruction, flag
+    );
 }

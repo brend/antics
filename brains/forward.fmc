@@ -1,4 +1,6 @@
-TURN_L
 start:
 ADVANCE
+CHECK_FOOD
+JZ start
+BARK
 JMP start
