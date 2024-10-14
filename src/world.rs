@@ -1,71 +1,41 @@
-use std::collections::HashMap;
 use std::fs::File;
 use std::io::Write;
-use crate::grid::{Coord, Direction};
-use crate::ant::{Colony, Pheromone, Ant, Input, Action};
+use crate::grid::{Grid, Coord, Direction};
+use crate::ant::{Colony, Pheromone, Scent, Ant};
+use crate::formica::{Instruction, run_instruction};
 
-#[derive(Debug)]
+#[derive(Default)]
 pub struct Cell {
     pub nest: Option<Colony>,
     pub is_obstacle: bool,
-    pub food: u32,
+    pub food: u8,
     pub pheromone: Option<Pheromone>,
 }
 
-impl Cell {
-    fn to_ascii(&self) -> char {
-        if self.is_obstacle {
-            '#'
-        } else if self.food > 0 {
-            '*'
-        } else if self.nest.is_some() {
-            'N'
-        } else if let Some(p) = self.pheromone {
-            p.scent.to_ascii()
-        } else {
-            '_'
-        }
-    }
-}
-
 /// The World is a hexagonal grid of cells addressed by cube coordinates.
-#[derive(Debug)]
 pub struct World {
     pub size: u32,
-    pub cells: HashMap<Coord, Cell>,
-    pub ants: HashMap<Coord, Ant>,
+    pub grid: Grid<Cell>,
+    pub ants: Vec<Ant>,
+    pub program: Vec<Instruction>,
 }
 
 impl World {
-    pub fn new(size: u32) -> Self {
-        let size = size as i32;
-        let mut cells = HashMap::new();
-
-        // Iterate over a range of cube coordinates within the specified radius
-        for x in -size..=size {
-            for y in -size..=size {
-                let z = -x - y;
-                // Only include cells within the hexagonal radius
-                if x.abs() <= size && y.abs() <= size && z.abs() <= size {
-                    cells.insert(Coord::new(x, y, z), Cell {
-                        nest: None,
-                        is_obstacle: false,
-                        food: 0,
-                        pheromone: None,
-                    });
-                }
-            }
-        }
-
+    pub fn new(size: u32, program: Vec<Instruction>) -> Self {
         World { 
             size: size as u32,
-            cells,
-            ants: HashMap::new(),
+            grid: Grid::new(size),
+            ants: vec![],
+            program,
         }
     }
 
+    fn get_cell(&self, coord: &Coord) -> Option<&Cell> {
+        self.grid.cells.get(coord)
+    }
+
     fn get_cell_mut(&mut self, coord: Coord) -> Option<&mut Cell> {
-        self.cells.get_mut(&coord)
+        self.grid.get_mut(&coord)
     }
 
     pub fn add_obstacle(&mut self, coord: Coord) {
@@ -74,46 +44,79 @@ impl World {
         }
     }
 
-    pub fn add_food(&mut self, coord: Coord, amount: u32) {
+    pub fn add_food(&mut self, coord: Coord, amount: u8) {
         if let Some(cell) = self.get_cell_mut(coord) {
             cell.food += amount;
         }
     }
 
-    pub fn add_ant(&mut self, coord: Coord, ant: Ant) {
-        self.ants.insert(coord, ant);
+    pub fn remove_food(&mut self, coord: Coord, amount: u8) {
+        if let Some(cell) = self.get_cell_mut(coord) {
+            cell.food = cell.food.saturating_sub(amount);
+        }
+    }
+
+    pub fn get_food_amount(&self, coord: Coord) -> u8 {
+        if let Some(cell) = self.get_cell(&coord) {
+            cell.food
+        } else {
+            0
+        }
+    }
+
+    pub fn is_obstacle(&self, coord: &Coord) -> bool {
+        if let Some(cell) = self.get_cell(coord) {
+            cell.is_obstacle
+        } else {
+            false
+        }
+    }
+
+    pub fn add_ant(&mut self, ant: Ant) {
+        self.ants.push(ant);
+    }
+
+    pub fn get_ant(&self, coord: &Coord) -> Option<&Ant> {
+        self.ants.iter().find(|ant| ant.coord == *coord)
+    }
+
+    pub fn get_pheromone(&self, coord: &Coord, colony: Colony) -> Option<Pheromone> {
+        if let Some(cell) = self.get_cell(coord) {
+            cell.pheromone.filter(|p| p.colony == colony)
+        } else {
+            None
+        }
+    }
+
+    pub fn add_pheromone(&mut self, coord: Coord, scent: Scent, colony: Colony) {
+        if let Some(cell) = self.get_cell_mut(coord) {
+            cell.pheromone = Some(Pheromone { scent, colony });
+        }
+    }
+
+    pub fn erase_pheromone(&mut self, coord: Coord) {
+        if let Some(cell) = self.get_cell_mut(coord) {
+            cell.pheromone = None;
+        }
+    }
+
+    pub fn get_nest(&self, coord: &Coord) -> Option<Colony> {
+        if let Some(cell) = self.get_cell(coord) {
+            cell.nest
+        } else {
+            None
+        }
     }
     
-    pub fn display(&self) {
-        let mut min_x = i32::MAX;
-        let mut max_x = i32::MIN;
-        let mut min_y = i32::MAX;
-        let mut max_y = i32::MIN;
-
-        // Determine grid bounds
-        for coord in self.cells.keys() {
-            if coord.q < min_x { min_x = coord.q; }
-            if coord.q > max_x { max_x = coord.q; }
-            if coord.r < min_y { min_y = coord.r; }
-            if coord.r > max_y { max_y = coord.r; }
-        }
-
-        // Print the grid in a hexagonal format
-        for y in (min_y..=max_y).rev() {
-            print!("{}", " ".repeat((y - min_y) as usize));  // Offset for hex alignment
-            for x in min_x..=max_x {
-                let z = -x - y;
-                let coord = Coord::new(x, y, z);
-                let icon = if let Some(ant) = self.ants.get(&coord) { ant.to_ascii() } else if let Some(value) = self.cells.get(&coord) { value.to_ascii() } else { ' ' };
-                print!(" {icon} ");
-            }
-            println!();
-        }
+    pub fn get_neighbor(&self, coord: &Coord, direction: &Direction) -> Coord {
+        let (x, y, z) = (coord.q, coord.r, coord.s);
+        let (dx, dy, dz) = direction.to_cube();
+        Coord::new(x + dx, y + dy, z + dz)
     }
     
     pub fn update(&mut self) {
-        for ant in self.ants.values_mut() {
-            ant.advance();
+        for ant in &mut self.ants {
+            run_instruction(&self.program, &mut self.grid, ant);
         }
     }
 
@@ -148,7 +151,7 @@ impl World {
         let hex_width = hex_radius * 2.0;
         let hex_height = 3f64.sqrt() * hex_radius;
     
-        for (coord, cell) in &self.cells {
+        for (coord, cell) in self.grid.iter() {
             let (x, y) = (coord.q, coord.r);
             let center_x = x as f64 * hex_width * 0.75;
             let center_y = y as f64 * hex_height + (x as f64 * hex_height / 2.0);
@@ -192,7 +195,7 @@ impl World {
             }
 
             // Display the ant at the hexagon center
-            if let Some(ant) = self.ants.get(&coord) {
+            if let Some(ant) = self.get_ant(&coord) {
                 let ant_emoji = ant.to_ascii();
                 // Rotate the ant emoji based on the direction it's facing
                 let angle = match ant.facing {

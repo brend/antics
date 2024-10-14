@@ -1,11 +1,13 @@
-use crate::formica::{Instruction, Address};
-use crate::grid::Direction;
+use crate::formica::AntState;
+use crate::grid::{Direction, Coord};
+use crate::world::Cell;
+use crate::grid::Grid;
 
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
-pub struct Colony(pub u32);
+pub struct Colony(pub u8);
 
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
-pub struct Scent(u32);
+pub struct Scent(pub u8);
 
 impl Scent {
     pub fn to_ascii(&self) -> char {
@@ -27,41 +29,22 @@ impl Pheromone {
 }
 
 #[derive(Debug)]
-pub struct Input {
-    pub is_carrying_food: bool,
-    pub is_food_on_ground: bool,
-    pub is_in_nest: bool,
-    pub pheromone: Option<Pheromone>,
-}
-
-#[derive(Debug)]
-pub enum Action {
-    TurnLeft,
-    TurnRight,
-    MoveForward,
-    PickUpFood,
-    DropFood,
-    ReleasePheromone(Scent),
-    ErasePheromone,
-}
-
-#[derive(Debug)]
 pub struct Ant {
     pub colony: Colony,
-    pub food: u32,
+    pub coord: Coord,
+    pub food: u8,
     pub facing: Direction,
-    pub program_counter: u32,
-    pub program: Vec<Instruction>,
+    pub state: AntState,
 }
 
 impl Ant {
-    pub fn new(colony: Colony, program: Vec<Instruction>) -> Self {
+    pub fn new(colony: Colony, coord: Coord) -> Self {
         Ant {
             colony,
+            coord,
             food: 0,
             facing: Direction::North,
-            program_counter: 0,
-            program
+            state: AntState::new(),
         }
     }
 
@@ -87,62 +70,37 @@ impl Ant {
         };
     }
 
+    pub fn move_forward(&mut self, grid: &Grid<Cell>) -> bool {
+        let new_coord = grid.get_neighbor(&self.coord, &self.facing);
+        if grid.get(&new_coord).map(|cell| !cell.is_obstacle).unwrap_or(false) {
+            self.coord = new_coord;
+            true
+        } else {
+            false
+        }
+    }
+
     pub fn to_ascii(&self) -> char {
         '🐜'
     }
 
-    pub fn advance(&mut self) {
-        let instruction = &self.program[self.program_counter as usize];
-        match instruction {
-            Instruction::Advance => {
-                self.program_counter += 1;
-            },
-            Instruction::TurnLeft => {
-                self.turn_left();
-                self.program_counter += 1;
-            },
-            Instruction::TurnRight => {
-                self.turn_right();
-                self.program_counter += 1;
-            },
-            Instruction::Pickup => {
-                self.program_counter += 1;
-            },
-            Instruction::Drop => {
-                self.program_counter += 1;
-            },
-            Instruction::ReleasePh(scent) => {
-                self.program_counter += 1;
-            },
-            Instruction::ErasePh => {
-                self.program_counter += 1;
-            },
-            Instruction::CheckFood => {
-                self.program_counter += 1;
-            },
-            Instruction::CheckPh => {
-                self.program_counter += 1;
-            },
-            Instruction::CheckNest => {
-                self.program_counter += 1;
-            },
-            Instruction::Jmp(Address::Absolute(address)) => {
-                self.program_counter = *address;
-            },
-            Instruction::Jz(Address::Absolute(address)) => {
-                if self.food == 0 {
-                    self.program_counter = *address;
-                } else {
-                    self.program_counter += 1;
-                }
-            },
-            Instruction::Jnz(Address::Absolute(address)) => {
-                if self.food != 0 {
-                    self.program_counter = *address;
-                } else {
-                    self.program_counter += 1;
-                }
-            },
+    pub fn pickup(&mut self, grid: &mut Grid<Cell>) -> bool {
+        if grid.get_mut(&self.coord).map(|cell| cell.food > 0).unwrap_or(false) {
+            self.food += 1;
+            grid.get_mut(&self.coord).map(|cell| cell.food -= 1);
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn drop(&mut self, grid: &mut Grid<Cell>) -> bool {
+        if self.food > 0 {
+            self.food -= 1;
+            grid.get_mut(&self.coord).map(|cell| cell.food += 1);
+            true
+        } else {
+            false
         }
     }
 }

@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 #[derive(Debug)]
 pub enum Direction {
     North,
@@ -6,6 +8,19 @@ pub enum Direction {
     South,
     SouthWest,
     NorthWest,   
+}
+
+impl Direction {
+    pub fn to_cube(&self) -> (i32, i32, i32) {
+        match self {
+            Direction::North => (1, 0, -1),
+            Direction::NorthEast => (0, 1, -1),
+            Direction::SouthEast => (-1, 1, 0),
+            Direction::South => (-1, 0, 1),
+            Direction::SouthWest => (0, -1, 1),
+            Direction::NorthWest => (1, -1, 0),
+        }
+    }
 }
 
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
@@ -33,5 +48,46 @@ impl Coord {
             Direction::SouthWest => Coord::new(self.r, self.s - 1, self.q + 1),
             Direction::NorthWest => Coord::new(self.r + 1, self.s - 1, self.q),
         }
+    }
+}
+
+pub struct Grid<T> {
+    pub cells: HashMap<Coord, T>,
+}
+
+impl<T: Default> Grid<T> {
+    pub fn new(size: u32) -> Self {
+        let size = size as i32;
+        let mut cells = HashMap::new();
+        for r in -size..=size {
+            for s in -size..=size {
+                let q = -r - s;
+                if r.abs() <= size && s.abs() <= size && q.abs() <= size {
+                    cells.insert(Coord::new(r, s, q), T::default());
+                }
+            }
+        }
+        Grid { cells }
+    }
+
+    pub fn set(&mut self, coord: Coord, value: T) {
+        self.cells.insert(coord, value);
+    }
+
+    pub fn get(&self, coord: &Coord) -> Option<&T> {
+        self.cells.get(coord)
+    }
+
+    pub fn get_mut(&mut self, coord: &Coord) -> Option<&mut T> {
+        self.cells.get_mut(coord)
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = (&Coord, &T)> {
+        self.cells.iter()
+    }
+
+    pub fn get_neighbor(&self, coord: &Coord, dir: &Direction) -> Coord {
+        let (dr, ds, dq) = dir.to_cube();
+        Coord::new(coord.r + dr, coord.s + ds, coord.q + dq)
     }
 }
