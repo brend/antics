@@ -10,10 +10,9 @@ fn create_world(program: Vec<Instruction>) -> World {
 }
 
 fn main() {
-    let program = parse("loop:\n\
-                         ADVANCE\n\
-                         TURN_L\n\
-                         JMP loop\n");
+    let source = std::fs::read_to_string("brains/forward.fmc")
+        .expect("Failed to read file");
+    let program = parse(&source);
     let mut world = create_world(program);
     loop {
         world.serialize_as_html("ants.html").unwrap();

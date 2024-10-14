@@ -13,12 +13,12 @@ pub enum Direction {
 impl Direction {
     pub fn to_cube(&self) -> (i32, i32, i32) {
         match self {
-            Direction::North => (1, 0, -1),
-            Direction::NorthEast => (0, 1, -1),
-            Direction::SouthEast => (-1, 1, 0),
-            Direction::South => (-1, 0, 1),
-            Direction::SouthWest => (0, -1, 1),
-            Direction::NorthWest => (1, -1, 0),
+            Direction::North => (-1, 1, 0),
+            Direction::NorthEast => (-1, 0, 1),
+            Direction::SouthEast => (0, -1, 1),
+            Direction::South => (1, -1, 0),
+            Direction::SouthWest => (1, 0, -1),
+            Direction::NorthWest => (0, 1, -1),
         }
     }
 }

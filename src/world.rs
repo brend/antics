@@ -122,7 +122,7 @@ impl World {
             if let Some(ant) = self.get_ant(&coord) {
                 let ant_emoji = ant.to_ascii();
                 // Rotate the ant emoji based on the direction it's facing
-                let angle = match ant.facing {
+                let angle = 90.0 + match ant.facing {
                     Direction::North => 0.0,
                     Direction::NorthEast => 60.0,
                     Direction::SouthEast => 120.0,
