@@ -22,10 +22,10 @@ fn main() {
                          TURN_L\n\
                          JMP loop\n");
     let mut world = create_world(program);
-    world.serialize_as_html("ants.html");
-    // loop {
-    //     world.display();
-    //     std::thread::sleep(std::time::Duration::from_millis(1000));
-    //     world.update();
-    // }
+    loop {
+        world.display();
+        world.serialize_as_html("ants.html");
+        std::thread::sleep(std::time::Duration::from_millis(1000));
+        world.update();
+    }
 }

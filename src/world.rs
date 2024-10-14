@@ -112,7 +112,9 @@ impl World {
     }
     
     pub fn update(&mut self) {
-
+        for ant in self.ants.values_mut() {
+            ant.advance();
+        }
     }
 
     pub fn serialize_as_html(&self, file_name: &str) -> std::io::Result<()> {
@@ -186,6 +188,26 @@ impl World {
                     file,
                     r#"<text x="{}" y="{}">{}</text>"#,
                     center_x, center_y, emoji
+                )?;
+            }
+
+            // Display the ant at the hexagon center
+            if let Some(ant) = self.ants.get(&coord) {
+                let ant_emoji = ant.to_ascii();
+                // Rotate the ant emoji based on the direction it's facing
+                let angle = match ant.facing {
+                    Direction::North => 0.0,
+                    Direction::NorthEast => 60.0,
+                    Direction::SouthEast => 120.0,
+                    Direction::South => 180.0,
+                    Direction::SouthWest => 240.0,
+                    Direction::NorthWest => 300.0,
+                };
+                // Place the ant emoji at the hexagon center
+                writeln!(
+                    file,
+                    r#"<text x="{}" y="{}" transform="rotate({} {} {})" >{}</text>"#,
+                    center_x, center_y, angle, center_x, center_y, ant_emoji
                 )?;
             }
         }

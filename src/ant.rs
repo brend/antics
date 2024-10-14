@@ -88,14 +88,7 @@ impl Ant {
     }
 
     pub fn to_ascii(&self) -> char {
-        match self.facing {
-            Direction::North => '^',
-            Direction::NorthEast => '/',
-            Direction::SouthEast => 'v',
-            Direction::South => 'v',
-            Direction::SouthWest => '\\',
-            Direction::NorthWest => '^',
-        }
+        '🐜'
     }
 
     pub fn advance(&mut self) {
