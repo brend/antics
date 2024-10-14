@@ -4,7 +4,7 @@ use antics::ant::{Colony, Ant};
 use antics::formica::{parse, Instruction};
 
 fn create_world(program: Vec<Instruction>) -> World {
-    let mut world = World::new(10);
+    let mut world = World::new(3);
     world.add_ant(Coord::new(0, 0, 0), Ant::new(Colony(0), program));
     world
 }
@@ -21,6 +21,7 @@ fn main() {
                          TURN_L\n\
                          JMP loop\n");
     let mut world = create_world(program);
+    world.serialize_as_html("ants.html");
     loop {
         world.display();
         std::thread::sleep(std::time::Duration::from_millis(1000));

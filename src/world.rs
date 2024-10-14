@@ -229,8 +229,8 @@ impl World {
 
         for (coord, cell) in &self.cells {
             let (x, y) = (coord.q, coord.r);
-            let center_x = (x + y / 2) as f64 * hex_width * 0.75;
-            let center_y = y as f64 * hex_height;
+            let center_x = x as f64 * hex_width * 0.75; // Shift x by 75% of hex width
+            let center_y = y as f64 * hex_height + (x as f64 * hex_height / 2.0); // Offset y by x-based offset
 
             // Define points for the hexagon shape
             let points: Vec<String> = (0..6)
