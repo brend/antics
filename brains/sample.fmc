@@ -1,0 +1,8 @@
+# sample ant brain
+# strategy: 
+# - walk in an expanding spiral
+# - place pheromones along the way
+# - when food is encountered, pick up and switch to return home mode:
+# - trace back pheromones to nest
+# - when nest is reached, drop food, leave nest
+# - upon leaving nest, begin from the top

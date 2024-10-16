@@ -25,6 +25,18 @@ pub enum Instruction {
     Bark,
 }
 
+/// Remove comments and leading/trailing whitespace from a line of code.
+fn cleanup_line(line: &str) -> String {
+    let mut cleaned = String::new();
+    for c in line.chars() {
+        if c == '#' {
+            break;
+        }
+        cleaned.push(c);
+    }
+    cleaned.trim().to_string()
+}
+
 pub fn parse(input: &str) -> Vec<Instruction> {
     let mut instructions = Vec::new();
     let mut labels = std::collections::HashMap::new();
@@ -32,7 +44,7 @@ pub fn parse(input: &str) -> Vec<Instruction> {
 
     // First pass: collect labels
     for line in input.lines() {
-        let line = line.trim();
+        let line = cleanup_line(line);
         if line.ends_with(':') {
             let label = line.trim_end_matches(':').to_string();
             labels.insert(label, current_address);
@@ -43,9 +55,12 @@ pub fn parse(input: &str) -> Vec<Instruction> {
 
     // Second pass: parse instructions
     for line in input.lines() {
-        let line = line.trim();
+        let line = cleanup_line(line);
         if line.ends_with(':') {
             continue; // Skip labels
+        }
+        if line.is_empty() {
+            continue; // Skip empty lines
         }
 
         let mut parts = line.split_whitespace();
